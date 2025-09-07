@@ -1,0 +1,609 @@
+import React, { useState, useEffect } from 'react';
+import { Calendar, NotebookPen, Plus, Trash2, Edit3, Save, X, CheckCircle, Clock, Target, Star, BookOpen, TrendingUp, Award } from 'lucide-react';
+
+const StudyScheduleApp = () => {
+  const [currentWeek, setCurrentWeek] = useState(1);
+  const [activeTab, setActiveTab] = useState('schedule');
+  const [notes, setNotes] = useState([]);
+  const [editingNote, setEditingNote] = useState(null);
+  const [newNote, setNewNote] = useState('');
+  const [tasks, setTasks] = useState([]);
+  const [newTask, setNewTask] = useState('');
+  const [schedule, setSchedule] = useState({
+    'Segunda-feira': { morning: 'Ética no Serviço Público', night: 'Português', completed: false, hours: 0 },
+    'Terça-feira': { morning: 'Direito Administrativo', night: 'Raciocínio Lógico', completed: false, hours: 0 },
+    'Quarta-feira': { morning: 'Informática', night: 'Direito Constitucional', completed: false, hours: 0 },
+    'Quinta-feira': { morning: 'Ética no Serviço Público', night: 'Português', completed: false, hours: 0 },
+    'Sexta-feira': { morning: 'Direito Administrativo', night: 'Raciocínio Lógico', completed: false, hours: 0 },
+    'Sábado': { morning: 'Revisão e Questões', night: 'Simulado ou Descanso', completed: false, hours: 0 },
+    'Domingo': { morning: 'Leitura de Notícias', night: 'Descanso', completed: false, hours: 0 }
+  });
+
+  // Load data from localStorage
+  useEffect(() => {
+    const savedSchedule = localStorage.getItem('studySchedule');
+    const savedNotes = localStorage.getItem('studyNotes');
+    const savedTasks = localStorage.getItem('studyTasks');
+    const savedWeek = localStorage.getItem('currentWeek');
+
+    if (savedSchedule) setSchedule(JSON.parse(savedSchedule));
+    if (savedNotes) setNotes(JSON.parse(savedNotes));
+    if (savedTasks) setTasks(JSON.parse(savedTasks));
+    if (savedWeek) setCurrentWeek(parseInt(savedWeek));
+  }, []);
+
+  // Save data to localStorage
+  useEffect(() => {
+    localStorage.setItem('studySchedule', JSON.stringify(schedule));
+  }, [schedule]);
+
+  useEffect(() => {
+    localStorage.setItem('studyNotes', JSON.stringify(notes));
+  }, [notes]);
+
+  useEffect(() => {
+    localStorage.setItem('studyTasks', JSON.stringify(tasks));
+  }, [tasks]);
+
+  useEffect(() => {
+    localStorage.setItem('currentWeek', currentWeek.toString());
+  }, [currentWeek]);
+
+  const subjects = [
+    'Português', 'Direito Administrativo', 'Direito Constitucional', 
+    'Ética no Serviço Público', 'Informática', 'Raciocínio Lógico',
+    'Revisão e Questões', 'Simulado', 'Descanso', 'Leitura de Notícias'
+  ];
+
+  const addNote = () => {
+    if (newNote.trim()) {
+      const note = {
+        id: Date.now(),
+        text: newNote,
+        date: new Date().toLocaleDateString('pt-BR'),
+        time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        week: currentWeek
+      };
+      setNotes([note, ...notes]);
+      setNewNote('');
+    }
+  };
+
+  const deleteNote = (id) => {
+    setNotes(notes.filter(note => note.id !== id));
+  };
+
+  const editNote = (id, newText) => {
+    setNotes(notes.map(note => 
+      note.id === id ? { ...note, text: newText } : note
+    ));
+    setEditingNote(null);
+  };
+
+  const addTask = () => {
+    if (newTask.trim()) {
+      const task = {
+        id: Date.now(),
+        text: newTask,
+        completed: false,
+        priority: 'media',
+        week: currentWeek,
+        createdAt: new Date().toLocaleDateString('pt-BR')
+      };
+      setTasks([task, ...tasks]);
+      setNewTask('');
+    }
+  };
+
+  const toggleTask = (id) => {
+    setTasks(tasks.map(task => 
+      task.id === id ? { ...task, completed: !task.completed } : task
+    ));
+  };
+
+  const deleteTask = (id) => {
+    setTasks(tasks.filter(task => task.id !== id));
+  };
+
+  const toggleDayCompletion = (day) => {
+    setSchedule(prev => ({
+      ...prev,
+      [day]: { ...prev[day], completed: !prev[day].completed }
+    }));
+  };
+
+  const updateScheduleItem = (day, period, subject) => {
+    setSchedule(prev => ({
+      ...prev,
+      [day]: { ...prev[day], [period]: subject }
+    }));
+  };
+
+  const updateStudyHours = (day, hours) => {
+    setSchedule(prev => ({
+      ...prev,
+      [day]: { ...prev[day], hours: parseFloat(hours) || 0 }
+    }));
+  };
+
+  const getWeekStats = () => {
+    const completedDays = Object.values(schedule).filter(day => day.completed).length;
+    const totalHours = Object.values(schedule).reduce((sum, day) => sum + day.hours, 0);
+    const currentWeekTasks = tasks.filter(task => task.week === currentWeek);
+    const completedTasks = currentWeekTasks.filter(task => task.completed).length;
+    
+    return {
+      completedDays,
+      totalDays: 7,
+      totalHours: totalHours.toFixed(1),
+      completedTasks,
+      totalTasks: currentWeekTasks.length,
+      completionRate: Math.round((completedDays / 7) * 100)
+    };
+  };
+
+  const TabButton = ({ id, label, icon: Icon, isActive, onClick }) => (
+    <button
+      onClick={() => onClick(id)}
+      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+        isActive 
+          ? 'bg-blue-600 text-white shadow-lg' 
+          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+      }`}
+    >
+      <Icon size={18} />
+      {label}
+    </button>
+  );
+
+  const ScheduleCard = ({ day, data }) => (
+    <div className={`bg-white rounded-xl border-2 ${data.completed ? 'border-green-300 bg-green-50' : 'border-gray-200'} shadow-sm overflow-hidden`}>
+      <div className={`${data.completed ? 'bg-green-600' : 'bg-gradient-to-r from-blue-600 to-purple-600'} text-white p-3 flex justify-between items-center`}>
+        <span className="font-bold text-sm">{day}</span>
+        <button
+          onClick={() => toggleDayCompletion(day)}
+          className="hover:scale-110 transition-transform"
+        >
+          <CheckCircle size={20} className={data.completed ? 'fill-current' : ''} />
+        </button>
+      </div>
+      <div className="p-3 space-y-3">
+        <div>
+          <div className="text-xs text-gray-500 font-semibold mb-1">MANHÃ/TARDE</div>
+          <select
+            value={data.morning}
+            onChange={(e) => updateScheduleItem(day, 'morning', e.target.value)}
+            className="w-full p-2 text-xs border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            {subjects.map(subject => (
+              <option key={subject} value={subject}>{subject}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <div className="text-xs text-gray-500 font-semibold mb-1">NOITE</div>
+          <select
+            value={data.night}
+            onChange={(e) => updateScheduleItem(day, 'night', e.target.value)}
+            className="w-full p-2 text-xs border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            {subjects.map(subject => (
+              <option key={subject} value={subject}>{subject}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <div className="text-xs text-gray-500 font-semibold mb-1">HORAS ESTUDADAS</div>
+          <input
+            type="number"
+            step="0.5"
+            min="0"
+            max="12"
+            value={data.hours}
+            onChange={(e) => updateStudyHours(day, e.target.value)}
+            placeholder="0"
+            className="w-full p-2 text-xs border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  const stats = getWeekStats();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl text-white">
+                <BookOpen size={24} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">Cronograma de Estudos</h1>
+                <p className="text-gray-600">Organize seus estudos de forma simples e prática</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{currentWeek}</div>
+                <div className="text-sm text-gray-500">Semana</div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCurrentWeek(Math.max(1, currentWeek - 1))}
+                  className="px-3 py-1 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  ←
+                </button>
+                <button
+                  onClick={() => setCurrentWeek(currentWeek + 1)}
+                  className="px-3 py-1 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  →
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Quick Stats */}
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-r from-green-400 to-green-500 text-white p-3 rounded-lg text-center">
+              <div className="text-lg font-bold">{stats.completedDays}/{stats.totalDays}</div>
+              <div className="text-xs opacity-90">Dias Concluídos</div>
+            </div>
+            <div className="bg-gradient-to-r from-blue-400 to-blue-500 text-white p-3 rounded-lg text-center">
+              <div className="text-lg font-bold">{stats.totalHours}h</div>
+              <div className="text-xs opacity-90">Horas de Estudo</div>
+            </div>
+            <div className="bg-gradient-to-r from-purple-400 to-purple-500 text-white p-3 rounded-lg text-center">
+              <div className="text-lg font-bold">{stats.completedTasks}/{stats.totalTasks}</div>
+              <div className="text-xs opacity-90">Tarefas</div>
+            </div>
+            <div className="bg-gradient-to-r from-orange-400 to-orange-500 text-white p-3 rounded-lg text-center">
+              <div className="text-lg font-bold">{stats.completionRate}%</div>
+              <div className="text-xs opacity-90">Progresso</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <TabButton
+            id="schedule"
+            label="Cronograma"
+            icon={Calendar}
+            isActive={activeTab === 'schedule'}
+            onClick={setActiveTab}
+          />
+          <TabButton
+            id="notes"
+            label="Anotações"
+            icon={NotebookPen}
+            isActive={activeTab === 'notes'}
+            onClick={setActiveTab}
+          />
+          <TabButton
+            id="tasks"
+            label="Tarefas"
+            icon={Target}
+            isActive={activeTab === 'tasks'}
+            onClick={setActiveTab}
+          />
+          <TabButton
+            id="progress"
+            label="Progresso"
+            icon={TrendingUp}
+            isActive={activeTab === 'progress'}
+            onClick={setActiveTab}
+          />
+        </div>
+
+        {/* Schedule Tab */}
+        {activeTab === 'schedule' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Object.entries(schedule).map(([day, data]) => (
+              <ScheduleCard key={day} day={day} data={data} />
+            ))}
+          </div>
+        )}
+
+        {/* Notes Tab */}
+        {activeTab === 'notes' && (
+          <div className="bg-white rounded-2xl shadow-xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <NotebookPen className="text-blue-600" size={24} />
+                <h2 className="text-xl font-bold text-gray-800">Bloco de Anotações</h2>
+              </div>
+              <div className="text-sm text-gray-500">
+                {notes.filter(note => note.week === currentWeek).length} notas esta semana
+              </div>
+            </div>
+
+            {/* Add Note */}
+            <div className="mb-6">
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Digite sua anotação..."
+                  className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onKeyPress={(e) => e.key === 'Enter' && addNote()}
+                />
+                <button
+                  onClick={addNote}
+                  className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <Plus size={18} />
+                  Adicionar
+                </button>
+              </div>
+            </div>
+
+            {/* Notes List */}
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {notes.filter(note => note.week === currentWeek).length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <NotebookPen size={48} className="mx-auto mb-3 opacity-30" />
+                  <p>Nenhuma anotação esta semana</p>
+                  <p className="text-sm">Adicione suas observações de estudo!</p>
+                </div>
+              ) : (
+                notes
+                  .filter(note => note.week === currentWeek)
+                  .map((note) => (
+                    <div key={note.id} className="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500">
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex-1">
+                          {editingNote === note.id ? (
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                defaultValue={note.text}
+                                className="flex-1 p-2 border rounded focus:ring-2 focus:ring-blue-500"
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    editNote(note.id, e.target.value);
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <button
+                                onClick={(e) => {
+                                  const input = e.target.parentElement.querySelector('input');
+                                  editNote(note.id, input.value);
+                                }}
+                                className="p-2 text-green-600 hover:bg-green-100 rounded"
+                              >
+                                <Save size={16} />
+                              </button>
+                              <button
+                                onClick={() => setEditingNote(null)}
+                                className="p-2 text-gray-600 hover:bg-gray-100 rounded"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div>
+                              <p className="text-gray-800 mb-2">{note.text}</p>
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <Clock size={12} />
+                                {note.date} às {note.time}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        {editingNote !== note.id && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setEditingNote(note.id)}
+                              className="p-2 text-blue-600 hover:bg-blue-100 rounded"
+                            >
+                              <Edit3 size={16} />
+                            </button>
+                            <button
+                              onClick={() => deleteNote(note.id)}
+                              className="p-2 text-red-600 hover:bg-red-100 rounded"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tasks Tab */}
+        {activeTab === 'tasks' && (
+          <div className="bg-white rounded-2xl shadow-xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Target className="text-purple-600" size={24} />
+                <h2 className="text-xl font-bold text-gray-800">Lista de Tarefas</h2>
+              </div>
+              <div className="text-sm text-gray-500">
+                {tasks.filter(task => task.week === currentWeek).length} tarefas esta semana
+              </div>
+            </div>
+
+            {/* Add Task */}
+            <div className="mb-6">
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={newTask}
+                  onChange={(e) => setNewTask(e.target.value)}
+                  placeholder="Digite uma nova tarefa..."
+                  className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  onKeyPress={(e) => e.key === 'Enter' && addTask()}
+                />
+                <button
+                  onClick={addTask}
+                  className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                >
+                  <Plus size={18} />
+                  Adicionar
+                </button>
+              </div>
+            </div>
+
+            {/* Tasks List */}
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {tasks.filter(task => task.week === currentWeek).length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <Target size={48} className="mx-auto mb-3 opacity-30" />
+                  <p>Nenhuma tarefa esta semana</p>
+                  <p className="text-sm">Adicione suas metas de estudo!</p>
+                </div>
+              ) : (
+                tasks
+                  .filter(task => task.week === currentWeek)
+                  .map((task) => (
+                    <div key={task.id} className={`rounded-lg p-4 border-l-4 ${
+                      task.completed 
+                        ? 'bg-green-50 border-green-500' 
+                        : 'bg-gray-50 border-purple-500'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => toggleTask(task.id)}
+                          className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                            task.completed
+                              ? 'bg-green-500 border-green-500 text-white'
+                              : 'border-gray-300 hover:border-purple-500'
+                          }`}
+                        >
+                          {task.completed && <CheckCircle size={12} />}
+                        </button>
+                        <div className="flex-1">
+                          <p className={`${task.completed ? 'line-through text-gray-500' : 'text-gray-800'}`}>
+                            {task.text}
+                          </p>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Criada em {task.createdAt}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => deleteTask(task.id)}
+                          className="p-2 text-red-600 hover:bg-red-100 rounded"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Progress Tab */}
+        {activeTab === 'progress' && (
+          <div className="space-y-6">
+            {/* Weekly Progress */}
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <TrendingUp className="text-green-600" size={24} />
+                <h2 className="text-xl font-bold text-gray-800">Progresso Semanal</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-semibold text-gray-800 mb-4">Dias da Semana</h3>
+                  <div className="space-y-2">
+                    {Object.entries(schedule).map(([day, data]) => (
+                      <div key={day} className="flex items-center justify-between p-2 rounded">
+                        <span className="text-sm">{day}</span>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-4 h-4 rounded-full ${data.completed ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                          <span className="text-xs text-gray-600">{data.hours}h</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-semibold text-gray-800 mb-4">Estatísticas</h3>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-green-50 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-green-800 font-semibold">Taxa de Conclusão</span>
+                        <span className="text-2xl font-bold text-green-600">{stats.completionRate}%</span>
+                      </div>
+                      <div className="w-full bg-green-200 rounded-full h-2 mt-2">
+                        <div 
+                          className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${stats.completionRate}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-blue-800 font-semibold">Horas Totais</span>
+                        <span className="text-2xl font-bold text-blue-600">{stats.totalHours}h</span>
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 bg-purple-50 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-purple-800 font-semibold">Tarefas Concluídas</span>
+                        <span className="text-2xl font-bold text-purple-600">{stats.completedTasks}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Achievement Badges */}
+            <div className="bg-white rounded-2xl shadow-xl p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <Award className="text-orange-600" size={24} />
+                <h2 className="text-xl font-bold text-gray-800">Conquistas</h2>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className={`p-4 rounded-lg text-center ${stats.completedDays >= 3 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
+                  <Star size={24} className="mx-auto mb-2" />
+                  <div className="font-semibold text-sm">3 Dias</div>
+                  <div className="text-xs">Estudioso</div>
+                </div>
+                
+                <div className={`p-4 rounded-lg text-center ${stats.completedDays >= 5 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'}`}>
+                  <Star size={24} className="mx-auto mb-2" />
+                  <div className="font-semibold text-sm">5 Dias</div>
+                  <div className="text-xs">Dedicado</div>
+                </div>
+                
+                <div className={`p-4 rounded-lg text-center ${stats.completedDays === 7 ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-500'}`}>
+                  <Star size={24} className="mx-auto mb-2" />
+                  <div className="font-semibold text-sm">7 Dias</div>
+                  <div className="text-xs">Perfeito!</div>
+                </div>
+                
+                <div className={`p-4 rounded-lg text-center ${parseFloat(stats.totalHours) >= 20 ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-500'}`}>
+                  <Star size={24} className="mx-auto mb-2" />
+                  <div className="font-semibold text-sm">20+ Horas</div>
+                  <div className="text-xs">Intensivo</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default StudyScheduleApp;
